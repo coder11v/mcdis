@@ -1,32 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Minecraft Server Monitor</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1f1c2c; /* default dark */
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      transition: background-color 1s ease;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #4caf50;
+      color: white;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #log {
+      margin-top: 20px;
+      padding: 15px 20px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      min-width: 300px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    #loading {
+      display: none;
+      margin-top: 10px;
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <h2>Minecraft Server Status</h2>
+  <h1>Minecraft Server Monitor</h1>
   <button id="checkBtn">Check Server Status & Send to Discord</button>
-  <p id="log"></p>
+  <div id="loading"><span class="spinner"></span>Checking server...</div>
+  <p id="log">Press the button to check status.</p>
 
   <script>
-    const webhookURL = "https://discord.com/api/webhooks/1428872358331940864/052hF-Wf-cwUqGTvQqncZj1Q5F3rzSkKztnTMMViXmN2hFG61MB7BYLw27E1vbWAOMEF"; // <-- put your webhook here
-    const serverStatusUrl = "https://api.mcsrvstat.us/2/java.york.veerbajaj.com"; // API endpoint
-    const MENTION = ""; // Optional: ping a role or user in Discord
+    const webhookURL = "YOUR_DISCORD_WEBHOOK_URL"; // <-- your webhook
+    const serverStatusUrl = "https://api.mcsrvstat.us/2/java.york.veerbajaj.com"; // API
+    const MENTION = ""; // Optional ping
 
     const logEl = document.getElementById("log");
+    const loadingEl = document.getElementById("loading");
+    const body = document.body;
+
     function log(msg) {
-      console.log(msg);
       logEl.innerText = msg;
     }
 
+    function setBackground(online) {
+      if (online) {
+        body.style.backgroundColor = "#162d1f"; // dark green
+      } else {
+        body.style.backgroundColor = "#2c1010"; // dark red
+      }
+    }
+
     async function checkServer() {
+      loadingEl.style.display = "block";
+      log("Fetching server status...");
       try {
         const res = await fetch(serverStatusUrl);
         const data = await res.json();
 
-        // Determine true online/offline status using MOTD and players
         const serverOffline = data.motd?.clean?.[0]?.toLowerCase().includes("offline") || data.players?.online === 0;
         const statusText = serverOffline ? "🔴 Offline" : "🟢 Online";
+
+        setBackground(!serverOffline); // change background based on status
 
         const description = serverOffline
           ? "Server is offline."
@@ -52,6 +125,9 @@
       } catch (err) {
         console.error(err);
         log("Error checking server or sending webhook.");
+        setBackground(false); // set dark red if error
+      } finally {
+        loadingEl.style.display = "none";
       }
     }
 
