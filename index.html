@@ -1,0 +1,96 @@
+<script>
+const discordWebhook = "https://discord.com/api/webhooks/1428872358331940864/052hF-Wf-cwUqGTvQqncZj1Q5F3rzSkKztnTMMViXmN2hFG61MB7BYLw27E1vbWAOMEF";
+const serverStatusUrl = "https://api.mcsrvstat.us/2/java.york.veerbajaj.com";
+
+let lastStatus = null;
+let lastPlayers = [];
+let lastMotd = "";
+
+async function sendWebhook(title, description, color) {
+  await fetch(discordWebhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: "Minecraft Monitor",
+      content: "<@&GamerFest>", // mention role
+      embeds: [{
+        title,
+        description,
+        color,
+        timestamp: new Date().toISOString()
+      }]
+    })
+  });
+}
+
+async function checkServer() {
+  try {
+    const res = await fetch(serverStatusUrl);
+    const data = await res.json();
+
+    const isOnline = data.online || false;
+    const motd = (data.motd?.clean?.join("\n") || "").trim();
+    const players = data.players?.list || [];
+    
+    // Detect online/offline change
+    if (lastStatus !== null && isOnline !== lastStatus) {
+      if (isOnline) {
+        await sendWebhook(
+          "🟢 Server Online!",
+          `**${data.hostname}** is now online!\nMOTD: ${motd || "N/A"}\nPlayers: ${players.length}/${data.players?.max || "?"}`,
+          0x00FF00
+        );
+      } else {
+        await sendWebhook(
+          "🔴 Server Offline!",
+          `**${data.hostname}** is now offline.`,
+          0xFF0000
+        );
+      }
+    }
+
+    // Detect MOTD change
+    if (lastMotd && motd && motd !== lastMotd) {
+      await sendWebhook(
+        "📝 MOTD Changed!",
+        `**Old:** ${lastMotd}\n**New:** ${motd}`,
+        0xFFFF00
+      );
+    }
+
+    // Detect player join/leave
+    if (lastPlayers.length && players.length !== lastPlayers.length) {
+      const joined = players.filter(p => !lastPlayers.includes(p));
+      const left = lastPlayers.filter(p => !players.includes(p));
+
+      if (joined.length > 0) {
+        await sendWebhook(
+          "🧍 Player Joined!",
+          `**${joined.join(", ")}** joined the server.\nPlayers online: ${players.length}/${data.players?.max || "?"}`,
+          0x00FFFF
+        );
+      }
+
+      if (left.length > 0) {
+        await sendWebhook(
+          "🚪 Player Left!",
+          `**${left.join(", ")}** left the server.\nPlayers online: ${players.length}/${data.players?.max || "?"}`,
+          0x808080
+        );
+      }
+    }
+
+    // Save last state
+    lastStatus = isOnline;
+    lastPlayers = players;
+    lastMotd = motd;
+
+  } catch (err) {
+    console.error("Error checking server:", err);
+  }
+}
+
+// Check every 30 seconds
+checkServer();
+setInterval(checkServer, 30000);
+</script>
