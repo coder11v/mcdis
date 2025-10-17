@@ -1,57 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Minecraft Server → Discord</title>
-  <style>
-    body { font-family: system-ui, Arial; max-width: 720px; margin: 32px auto; padding: 0 16px; }
-    button { padding: 8px 16px; font-size:16px; cursor:pointer; margin-top:12px; }
-    .log { background:#f7f7f7; padding:8px; border-radius:6px; margin-top:12px; max-height:220px; overflow:auto; font-family:monospace; font-size:13px; }
-  </style>
+  <title>Minecraft Server Monitor</title>
 </head>
 <body>
-  <h1>Minecraft Server Status Checker</h1>
-  <p>Click the button to post the server status to Discord.</p>
-
-  <button id="checkStatusBtn">Check Server Status</button>
-  <div class="log" id="log"></div>
+  <h2>Minecraft Server Status</h2>
+  <button id="checkBtn">Check Server Status & Send to Discord</button>
+  <p id="log"></p>
 
   <script>
-    const webhookURL = "YOUR_DISCORD_WEBHOOK_HERE"; // <-- Replace with your webhook
-    const serverStatusUrl = "https://api.mcsrvstat.us/2/java.york.veerbajaj.com";
-    const MENTION = "<@&GamerFest>"; // optional Discord role mention
+    const webhookURL = "https://discord.com/api/webhooks/1428872358331940864/052hF-Wf-cwUqGTvQqncZj1Q5F3rzSkKztnTMMViXmN2hFG61MB7BYLw27E1vbWAOMEF"; // <-- put your webhook here
+    const serverStatusUrl = "https://api.mcsrvstat.us/2/java.york.veerbajaj.com"; // API endpoint
+    const MENTION = ""; // Optional: ping a role or user in Discord
 
     const logEl = document.getElementById("log");
-    const button = document.getElementById("checkStatusBtn");
-
-    function log(message) {
-      const t = new Date().toLocaleTimeString();
-      logEl.innerText = `[${t}] ${message}\n` + logEl.innerText;
+    function log(msg) {
+      console.log(msg);
+      logEl.innerText = msg;
     }
 
     async function checkServer() {
       try {
         const res = await fetch(serverStatusUrl);
         const data = await res.json();
-        const statusText = data.online ? "🟢 Online" : "🔴 Offline";
-        const motd = data.motd?.clean?.join("\n") || "N/A";
-        const players = data.players?.list || [];
 
-        const description = data.online
-          ? `**Server is online!**\nMOTD: ${motd}\nPlayers: ${players.length}/${data.players?.max || "?"}`
-          : "Server is offline.";
+        // Determine true online/offline status using MOTD and players
+        const serverOffline = data.motd?.clean?.[0]?.toLowerCase().includes("offline") || data.players?.online === 0;
+        const statusText = serverOffline ? "🔴 Offline" : "🟢 Online";
 
-        // Send to Discord
+        const description = serverOffline
+          ? "Server is offline."
+          : `**Server is online!**\nMOTD: ${data.motd?.clean?.join("\n")}\nPlayers: ${data.players?.online || 0}/${data.players?.max || "?"}`;
+
+        // Send to Discord webhook
         await fetch(webhookURL, {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             username: "Minecraft Monitor",
             content: MENTION,
             embeds: [{
               title: statusText,
               description,
-              color: data.online ? 0x00FF00 : 0xFF0000,
+              color: serverOffline ? 0xFF0000 : 0x00FF00,
               timestamp: new Date().toISOString()
             }]
           })
@@ -64,7 +55,7 @@
       }
     }
 
-    button.addEventListener("click", checkServer);
+    document.getElementById("checkBtn").addEventListener("click", checkServer);
   </script>
 </body>
 </html>
